@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+venv/
+.venv/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Pipeline output (generated per run)
+output/
+
+# Models (downloaded at runtime)
+models/
+
+# Logs
+*.log
+
+# Secrets
+*.pem
+*.key
+credentials.json

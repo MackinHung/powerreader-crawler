@@ -1,0 +1,15 @@
+# PowerReader Crawler Pipeline dependencies
+# Python 3.11+
+
+# RSS parsing
+feedparser>=6.0
+
+# Content extraction
+trafilatura>=1.12
+
+# Embeddings (topic filter + dedup)
+sentence-transformers>=3.0
+torch>=2.0
+
+# Date parsing
+python-dateutil>=2.9

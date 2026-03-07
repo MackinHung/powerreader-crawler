@@ -1,0 +1,81 @@
+name: News Crawler (Scheduled)
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"  # Every 2 hours (UTC)
+  workflow_dispatch:        # Manual trigger
+    inputs:
+      limit:
+        description: "Max articles to process (0=all)"
+        required: false
+        default: "50"
+      freshness:
+        description: "Freshness window in hours"
+        required: false
+        default: "6"
+      no_push:
+        description: "Skip pushing to PowerReader API"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Cache pip packages
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: pip-
+
+      # Cache bge-small-zh model (~130MB)
+      - name: Cache bge-small-zh model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface/hub/models--BAAI--bge-small-zh-v1.5
+          key: bge-small-zh-v1.5-v1
+          restore-keys: bge-small-zh-v1.5-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run crawler pipeline
+        env:
+          POWERREADER_API_KEY: ${{ secrets.POWERREADER_API_KEY }}
+          POWERREADER_API_URL: ${{ secrets.POWERREADER_API_URL }}
+        run: |
+          LIMIT="${{ github.event.inputs.limit || '50' }}"
+          FRESHNESS="${{ github.event.inputs.freshness || '6' }}"
+          NO_PUSH="${{ github.event.inputs.no_push || 'false' }}"
+
+          ARGS="--limit ${LIMIT} --freshness ${FRESHNESS}"
+
+          if [ "${NO_PUSH}" = "true" ]; then
+            ARGS="${ARGS} --no-push"
+          fi
+
+          python -m src.crawler.runner ${ARGS}
+
+      - name: Upload pipeline output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crawl-output-${{ github.run_id }}
+          path: output/pipeline_run_*.json
+          retention-days: 30
+
+      - name: Alert on failure
+        if: failure()
+        run: |
+          echo "::error::Crawler pipeline failed! Check logs for details."

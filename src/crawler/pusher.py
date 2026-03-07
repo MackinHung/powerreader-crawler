@@ -30,6 +30,25 @@ RETRY_DELAY = 5  # seconds (doubles each retry)
 # Default API URL — override with POWERREADER_API_URL env var
 DEFAULT_API_URL = "https://api.powerreader.dev/api/v1"
 
+# Map crawler source keys to API enum values (shared/enums.js NEWS_SOURCES)
+SOURCE_KEY_TO_API = {
+    "LIBERTY_TIMES": "自由時報",
+    "CHINA_TIMES": "中國時報",
+    "UNITED_DAILY_NEWS": "聯合報",
+    "COMMON_WEALTH": "天下雜誌",
+    "BUSINESS_WEEKLY": "商業週刊",
+    "THE_NEWS_LENS": "關鍵評論網",
+    "THE_REPORTER": "報導者",
+    "CNA": "中央社",
+    "PTS": "公視新聞",
+    "ECONOMIC_DAILY_NEWS": "經濟日報",
+    "COMMERCIAL_TIMES": "工商時報",
+    "INSIDE": "Inside",
+    "TECHNEWS": "科技新報",
+    "ITHOME": "iThome",
+    "STORM_MEDIA": "風傳媒",
+}
+
 
 def _get_config() -> tuple[str, str]:
     """Get API URL and API key from environment."""
@@ -58,7 +77,7 @@ def _format_article(article: dict) -> dict:
         "author": article.get("author"),
         "content_markdown": article["content_markdown"],
         "char_count": article["char_count"],
-        "source": article["source"],
+        "source": SOURCE_KEY_TO_API.get(article["source"], article["source"]),
         "primary_url": article["primary_url"],
         "duplicate_urls": dedup.get("duplicate_urls", []),
         "published_at": article.get("published_at", ""),
@@ -94,6 +113,7 @@ def _post_batch(
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
+        "User-Agent": "PowerReaderCrawler/1.0",
     }
 
     last_error = None

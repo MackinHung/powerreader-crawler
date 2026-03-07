@@ -140,7 +140,7 @@ def run_pipeline(
     limit: int = 0,
     source_filter: str | None = None,
     dry_run: bool = False,
-    freshness_hours: int = 6,
+    freshness_hours: int = 3,
     skip_filter: bool = False,
     filter_threshold: float = 0.55,
     skip_push: bool = False,

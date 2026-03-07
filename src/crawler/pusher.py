@@ -48,6 +48,10 @@ SOURCE_KEY_TO_API = {
     "TECHNEWS": "科技新報",
     "ITHOME": "iThome",
     "STORM_MEDIA": "風傳媒",
+    "ETTODAY": "ETtoday新聞雲",
+    "SETN": "三立新聞",
+    "EBC": "東森新聞",
+    "NEWTALK": "新頭殼",
 }
 
 

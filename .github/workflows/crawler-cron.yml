@@ -12,7 +12,7 @@ on:
       freshness:
         description: "Freshness window in hours"
         required: false
-        default: "8"
+        default: "3"
       no_push:
         description: "Skip pushing to PowerReader API"
         required: false

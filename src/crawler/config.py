@@ -95,12 +95,51 @@ RSS_SOURCES = [
         "feeds": ["https://www.ithome.com.tw/rss"],
         "extractor": "markdown_new",
     },
+    # Storm Media: RSS API broken since ~2026-03 (1 garbled entry,
+    # Big5/UTF-8 encoding mismatch). No RSSHub route available.
+    # Disabled until alternative source found.
+    # {
+    #     "key": "STORM_MEDIA",
+    #     "name": "Storm Media",
+    #     "feeds": ["https://www.storm.mg/api/getRss/channel_id/2"],
+    #     "extractor": "markdown_new",
+    #     "fix_relative_urls": "https://www.storm.mg",
+    # },
     {
-        "key": "STORM_MEDIA",
-        "name": "Storm Media",
-        "feeds": ["https://www.storm.mg/api/getRss/channel_id/2"],
+        "key": "ETTODAY",
+        "name": "ETtoday",
+        "feeds": [
+            "https://feeds.feedburner.com/ettoday/news",
+            "https://feeds.feedburner.com/ettoday/society",
+            "https://feeds.feedburner.com/ettoday/lifestyle",
+            "https://feeds.feedburner.com/ettoday/finance",
+        ],
         "extractor": "markdown_new",
-        "fix_relative_urls": "https://www.storm.mg",
+    },
+    {
+        "key": "SETN",
+        "name": "SET News",
+        "feeds": ["https://rsshub.rssforever.com/setn"],
+        "extractor": "trafilatura",  # setn.com uses .aspx URLs
+    },
+    {
+        "key": "EBC",
+        "name": "EBC News",
+        "feeds": [
+            "https://rsshub.rssforever.com/ebc/realtime",
+            "https://rsshub.rssforever.com/ebc/realtime/society",
+            "https://rsshub.rssforever.com/ebc/realtime/living",
+        ],
+        "extractor": "markdown_new",
+    },
+    {
+        "key": "NEWTALK",
+        "name": "Newtalk",
+        "feeds": [
+            "https://newtalk.tw/rss/category/2",
+            "https://newtalk.tw/rss/category/14",
+        ],
+        "extractor": "markdown_new",
     },
 ]
 

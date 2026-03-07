@@ -1,5 +1,6 @@
 """
 Stage E — Content deduplication (SHA256 exact + bge-small-zh semantic).
+Copyright (C) 2026 @MackinHung (https://github.com/MackinHung)
 
 Two-layer dedup within a single pipeline batch:
   Layer 1: SHA256 content_hash exact match (already computed in cleaner)

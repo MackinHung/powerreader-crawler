@@ -1,5 +1,6 @@
 """
 Stage D — Topic filtering via bge-small-zh-v1.5 embeddings.
+Copyright (C) 2026 @MackinHung (https://github.com/MackinHung)
 
 Filters articles by semantic similarity to predefined topic categories.
 Only social/political articles pass through; entertainment, sports (non-political),

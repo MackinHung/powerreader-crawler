@@ -1,5 +1,6 @@
 """
 Stage B — Full text extraction via markdown.new with trafilatura fallback.
+Copyright (C) 2026 @MackinHung (https://github.com/MackinHung)
 
 Routes each article URL to the appropriate extraction method based on
 source configuration.

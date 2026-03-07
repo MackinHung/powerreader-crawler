@@ -1,5 +1,6 @@
 """
 Stage C — Content cleaning and structured data extraction.
+Copyright (C) 2026 @MackinHung (https://github.com/MackinHung)
 
 Multi-phase cleaning pipeline:
   Phase 1: parse_frontmatter() — extract YAML-like frontmatter

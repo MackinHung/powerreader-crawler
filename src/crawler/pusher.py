@@ -1,5 +1,6 @@
 """
 Stage F — Push articles to PowerReader API.
+Copyright (C) 2026 @MackinHung (https://github.com/MackinHung)
 
 Sends cleaned and deduplicated articles to the PowerReader
 Cloudflare Workers endpoint via POST /api/v1/articles/batch.

@@ -1,5 +1,6 @@
 """
 Pipeline Runner — orchestrates Stage A + D + B + C + E + F with rate limiting.
+Copyright (C) 2026 @MackinHung (https://github.com/MackinHung)
 
 Usage:
     python -m src.crawler.runner [--limit N] [--source KEY] [--dry-run]

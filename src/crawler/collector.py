@@ -1,5 +1,6 @@
 """
 Stage A — Title & URL Collection from RSS feeds and JSON APIs.
+Copyright (C) 2026 @MackinHung (https://github.com/MackinHung)
 
 Collects article metadata (title, url, source, published_at, summary)
 without fetching full article content.

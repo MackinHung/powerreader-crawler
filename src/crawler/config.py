@@ -1,5 +1,6 @@
 """
 Crawler pipeline configuration — source definitions and constants.
+Copyright (C) 2026 @MackinHung (https://github.com/MackinHung)
 Single source of truth for all crawler settings.
 """
 

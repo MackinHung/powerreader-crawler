@@ -2,7 +2,7 @@ name: News Crawler (Scheduled)
 
 on:
   schedule:
-    - cron: "0 */2 * * *"  # Every 2 hours (UTC)
+    - cron: "0 */6 * * *"  # Every 6 hours (UTC)
   workflow_dispatch:        # Manual trigger
     inputs:
       limit:
@@ -12,7 +12,7 @@ on:
       freshness:
         description: "Freshness window in hours"
         required: false
-        default: "6"
+        default: "8"
       no_push:
         description: "Skip pushing to PowerReader API"
         required: false
@@ -56,7 +56,7 @@ jobs:
           POWERREADER_API_URL: ${{ secrets.POWERREADER_API_URL }}
         run: |
           LIMIT="${{ github.event.inputs.limit || '0' }}"
-          FRESHNESS="${{ github.event.inputs.freshness || '6' }}"
+          FRESHNESS="${{ github.event.inputs.freshness || '8' }}"
           NO_PUSH="${{ github.event.inputs.no_push || 'false' }}"
 
           ARGS="--limit ${LIMIT} --freshness ${FRESHNESS}"

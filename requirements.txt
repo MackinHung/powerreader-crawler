@@ -4,6 +4,9 @@
 # RSS parsing
 feedparser>=6.0
 
+# HTTP requests
+requests>=2.31
+
 # Content extraction
 trafilatura>=1.12
 

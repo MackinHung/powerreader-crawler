@@ -8,7 +8,7 @@ on:
       limit:
         description: "Max articles to process (0=all)"
         required: false
-        default: "50"
+        default: "0"
       freshness:
         description: "Freshness window in hours"
         required: false
@@ -55,7 +55,7 @@ jobs:
           POWERREADER_API_KEY: ${{ secrets.POWERREADER_API_KEY }}
           POWERREADER_API_URL: ${{ secrets.POWERREADER_API_URL }}
         run: |
-          LIMIT="${{ github.event.inputs.limit || '50' }}"
+          LIMIT="${{ github.event.inputs.limit || '0' }}"
           FRESHNESS="${{ github.event.inputs.freshness || '6' }}"
           NO_PUSH="${{ github.event.inputs.no_push || 'false' }}"
 

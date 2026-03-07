@@ -80,7 +80,7 @@ def _format_article(article: dict) -> dict:
         "source": SOURCE_KEY_TO_API.get(article["source"], article["source"]),
         "primary_url": article["primary_url"],
         "duplicate_urls": dedup.get("duplicate_urls", []),
-        "published_at": article.get("published_at", ""),
+        "published_at": article.get("published_at") or article.get("crawled_at", ""),
         "crawled_at": article.get("crawled_at", ""),
         "filter_score": article.get("filter_score", 0.0),
         "matched_topic": article.get("matched_topic", ""),

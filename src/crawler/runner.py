@@ -11,7 +11,7 @@ Streaming pipeline: processes articles one-by-one through all stages.
 
 Stages:
   A: Collect article metadata from RSS/API sources
-  D: Topic filter via bge-small-zh-v1.5 (keep social/political only)
+  D: Topic filter via fine-tuned ALBERT classifier (keep political only)
   B: Extract full text via markdown.new / trafilatura
   C: Clean and validate content quality
   E: Content dedup (SHA256 exact + bge-small-zh semantic)
@@ -347,12 +347,9 @@ def run_pipeline(
 
         from .dedup import Deduplicator
 
-        # Reuse bge-small-zh model from TopicFilter if available
-        dedup_model = None
-        if not skip_filter and "topic_filter" in dir():
-            dedup_model = topic_filter._model
-
-        deduplicator = Deduplicator(model=dedup_model)
+        # TopicFilter now uses ALBERT (not SentenceTransformer),
+        # so Deduplicator loads its own bge-small-zh model.
+        deduplicator = Deduplicator()
         deduped_results = deduplicator.deduplicate(results)
 
         # Summarize dedup results

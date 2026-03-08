@@ -556,7 +556,8 @@ def clean_article(
         "primary_url": article_meta["url"],
         "published_at": published_iso,
         "crawled_at": now.isoformat(),
-        "filter_score": None,      # bge-small-zh (Phase 2)
-        "matched_topic": None,     # topic matching (Phase 2)
-        "dedup_metadata": None,    # dedup info (Phase 3)
+        "feed_category": article_meta.get("feed_category", "綜合"),
+        "filter_score": None,      # ALBERT classifier (Stage D)
+        "matched_topic": None,     # ALBERT keep category (Stage D)
+        "dedup_metadata": None,    # dedup info (Stage E)
     }

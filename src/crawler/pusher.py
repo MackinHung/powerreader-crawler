@@ -52,6 +52,11 @@ SOURCE_KEY_TO_API = {
     "SETN": "三立新聞",
     "EBC": "東森新聞",
     "NEWTALK": "新頭殼",
+    "MIRROR_MEDIA": "鏡週刊",
+    "CNEWS": "匯流新聞",
+    "TTV": "台視新聞",
+    "CTV": "中視新聞",
+    "CTS": "華視新聞",
 }
 
 
@@ -87,6 +92,7 @@ def _format_article(article: dict) -> dict:
         "duplicate_urls": dedup.get("duplicate_urls", []),
         "published_at": article.get("published_at") or article.get("crawled_at", ""),
         "crawled_at": article.get("crawled_at", ""),
+        "feed_category": article.get("feed_category", "綜合"),
         "filter_score": article.get("filter_score", 0.0),
         "matched_topic": article.get("matched_topic", ""),
         "dedup_metadata": {

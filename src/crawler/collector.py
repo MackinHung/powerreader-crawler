@@ -38,6 +38,7 @@ def make_article_meta(
     url: str,
     published_at: datetime | None,
     summary: str,
+    feed_category: str = "綜合",
 ) -> dict:
     """Create an immutable article metadata record."""
     clean_title = re.sub(r"\s+", "", title.strip())
@@ -47,6 +48,7 @@ def make_article_meta(
         "url": url.strip(),
         "published_at": published_at,
         "summary": summary[:500] if summary else "",
+        "feed_category": feed_category,
         "title_hash": hashlib.sha256(
             clean_title.encode("utf-8")
         ).hexdigest()[:16],
@@ -132,6 +134,21 @@ def _clean_html(text: str) -> str:
     return re.sub(r"<[^>]+>", "", text).strip()
 
 
+def _extract_entry_category(entry) -> str | None:
+    """Extract first category tag from a feedparser entry.
+
+    RSS <category> tags are parsed by feedparser into entry.tags:
+      [{'term': '政治', 'scheme': None, 'label': None}, ...]
+    Returns the first term, or None if no tags.
+    """
+    tags = getattr(entry, "tags", None)
+    if tags and isinstance(tags, list) and len(tags) > 0:
+        term = tags[0].get("term", "")
+        if term and len(term) <= 20:  # Skip garbage/encoded tags
+            return term
+    return None
+
+
 def collect_rss(source: dict) -> list[dict]:
     """Collect articles from RSS feeds for a single source.
 
@@ -142,7 +159,15 @@ def collect_rss(source: dict) -> list[dict]:
     fix_prefix = source.get("fix_relative_urls", "")
     url_replace = source.get("url_replace")
 
-    for feed_url in source["feeds"]:
+    for feed_item in source["feeds"]:
+        # Support both old string format and new {url, category} dict
+        if isinstance(feed_item, str):
+            feed_url = feed_item
+            feed_category = "綜合"
+        else:
+            feed_url = feed_item["url"]
+            feed_category = feed_item.get("category", "綜合")
+
         try:
             feed = feedparser.parse(feed_url)
 
@@ -188,12 +213,18 @@ def collect_rss(source: dict) -> list[dict]:
                     getattr(entry, "summary", "") or ""
                 )
 
+                # Article-level category from RSS <category> tag
+                # overrides feed-level category for mixed feeds
+                entry_cat = _extract_entry_category(entry)
+                category = entry_cat if entry_cat else feed_category
+
                 articles.append(make_article_meta(
                     source=source["key"],
                     title=title,
                     url=link,
                     published_at=pub_time,
                     summary=summary,
+                    feed_category=category,
                 ))
 
         except Exception as e:
@@ -215,6 +246,7 @@ def collect_udn_api(source: dict) -> list[dict]:
     seen_urls: set[str] = set()
     max_pages = source.get("max_pages", 5)
     url_prefix = source.get("url_prefix", "https://udn.com")
+    source_category = source.get("category", "綜合")
 
     for page in range(max_pages):
         try:
@@ -260,12 +292,17 @@ def collect_udn_api(source: dict) -> list[dict]:
                 time_str = time_obj.get("date", "") if isinstance(time_obj, dict) else ""
                 pub_time = parse_datetime_str(time_str)
 
+                # UDN API cate_name field as article-level category
+                api_cat = item.get("cate_name", "")
+                category = api_cat if api_cat else source_category
+
                 articles.append(make_article_meta(
                     source=source["key"],
                     title=title,
                     url=url,
                     published_at=pub_time,
                     summary="",
+                    feed_category=category,
                 ))
 
             if data.get("end", False):
@@ -351,6 +388,7 @@ def collect_sitemap(source: dict) -> list[dict]:
                 url=loc,
                 published_at=pub_date,
                 summary="",
+                feed_category=source.get("category", "綜合"),
             ))
 
         return articles

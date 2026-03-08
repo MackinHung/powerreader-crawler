@@ -17,11 +17,12 @@ from .config import (
     REQUEST_TIMEOUT,
     RSS_SOURCES,
     API_SOURCES,
+    SITEMAP_SOURCES,
 )
 
 # Build a lookup: source_key -> extractor method name
 _SOURCE_EXTRACTOR: dict[str, str] = {}
-for _src in RSS_SOURCES + API_SOURCES:
+for _src in RSS_SOURCES + API_SOURCES + SITEMAP_SOURCES:
     _SOURCE_EXTRACTOR[_src["key"]] = _src.get("extractor", "markdown_new")
 
 

@@ -141,6 +141,34 @@ RSS_SOURCES = [
         ],
         "extractor": "markdown_new",
     },
+    {
+        "key": "MIRROR_MEDIA",
+        "name": "Mirror Media",
+        "feeds": [
+            "https://www.mirrormedia.mg/rss/political.xml",
+            "https://www.mirrormedia.mg/rss/rss.xml",
+        ],
+        "extractor": "markdown_new",
+    },
+    {
+        "key": "CNEWS",
+        "name": "CNEWS",
+        "feeds": ["https://cnews.com.tw/feed/"],
+        "extractor": "markdown_new",
+    },
+    {
+        "key": "TTV",
+        "name": "TTV News",
+        "feeds": ["https://www.ttv.com.tw/rss/RSSHandler.ashx?d=news"],
+        "extractor": "markdown_new",
+    },
+    {
+        "key": "CTV",
+        "name": "CTV News",
+        "feeds": ["https://www.ctv.com.tw/rss"],
+        "extractor": "trafilatura",
+        "url_replace": ["http://new.ctv.com.tw", "https://www.ctv.com.tw"],
+    },
 ]
 
 # ------------------------------------------------------------------
@@ -173,6 +201,19 @@ API_SOURCES = [
         "url_prefix": "https://money.udn.com",
         "max_pages": 5,
         "extractor": "markdown_new",
+    },
+]
+
+# ------------------------------------------------------------------
+# Sitemap source definitions (Google News Sitemap XML)
+# ------------------------------------------------------------------
+
+SITEMAP_SOURCES = [
+    {
+        "key": "CTS",
+        "name": "CTS News",
+        "sitemap_url": "https://news.cts.com.tw/sitemap_cts_google.xml",
+        "extractor": "trafilatura",
     },
 ]
 

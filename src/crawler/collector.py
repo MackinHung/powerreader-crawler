@@ -22,6 +22,7 @@ from .config import (
     HEADERS,
     REQUEST_TIMEOUT,
     RSS_SOURCES,
+    SITEMAP_SOURCES,
     TW_TZ,
 )
 
@@ -139,6 +140,7 @@ def collect_rss(source: dict) -> list[dict]:
     articles = []
     seen_urls: set[str] = set()
     fix_prefix = source.get("fix_relative_urls", "")
+    url_replace = source.get("url_replace")
 
     for feed_url in source["feeds"]:
         try:
@@ -161,6 +163,10 @@ def collect_rss(source: dict) -> list[dict]:
                         link = fix_prefix + link
                     else:
                         continue
+
+                # Replace broken domain in feed URLs (CTV)
+                if url_replace:
+                    link = link.replace(url_replace[0], url_replace[1])
 
                 # Strip tracking params
                 link = link.split("?utm_")[0]
@@ -276,6 +282,85 @@ def collect_udn_api(source: dict) -> list[dict]:
 
 
 # ------------------------------------------------------------------
+# Sitemap collection (Google News Sitemap XML)
+# ------------------------------------------------------------------
+
+def collect_sitemap(source: dict) -> list[dict]:
+    """Collect articles from a Google News Sitemap XML.
+
+    Parses <url> elements with <news:news> children to extract
+    title, link, and publication date.
+    """
+    import xml.etree.ElementTree as ET
+
+    try:
+        resp = requests.get(
+            source["sitemap_url"],
+            headers=HEADERS,
+            timeout=REQUEST_TIMEOUT,
+        )
+
+        if resp.status_code != 200:
+            print(f"    [WARN] Sitemap HTTP {resp.status_code}")
+            return []
+
+        root = ET.fromstring(resp.content)
+
+        ns = {
+            "sm": "http://www.sitemaps.org/schemas/sitemap/0.9",
+            "news": "http://www.google.com/schemas/sitemap-news/0.9",
+        }
+
+        articles = []
+        seen_urls: set[str] = set()
+
+        for url_elem in root.findall("sm:url", ns):
+            loc = (url_elem.findtext("sm:loc", "", ns) or "").strip()
+            if not loc or loc in seen_urls:
+                continue
+            seen_urls.add(loc)
+
+            news_elem = url_elem.find("news:news", ns)
+            title = ""
+            pub_date = None
+
+            if news_elem is not None:
+                title = (
+                    news_elem.findtext("news:title", "", ns) or ""
+                ).strip()
+                date_str = (
+                    news_elem.findtext(
+                        "news:publication_date", "", ns
+                    ) or ""
+                ).strip()
+                pub_date = parse_datetime_str(date_str)
+
+                # Sitemap dates may lack time precision (e.g. "2026-03-08").
+                # Default midnight causes premature freshness expiry.
+                # Bump to noon so articles stay fresh 04:00-20:00 TW time.
+                if pub_date and pub_date.hour == 0 and pub_date.minute == 0:
+                    if len(date_str) <= 10:  # "YYYY-MM-DD" only
+                        pub_date = pub_date.replace(hour=12)
+
+            if not title or not loc:
+                continue
+
+            articles.append(make_article_meta(
+                source=source["key"],
+                title=title,
+                url=loc,
+                published_at=pub_date,
+                summary="",
+            ))
+
+        return articles
+
+    except Exception as e:
+        print(f"    [ERROR] Sitemap {source['key']}: {e}")
+        return []
+
+
+# ------------------------------------------------------------------
 # Collect all sources
 # ------------------------------------------------------------------
 
@@ -303,6 +388,16 @@ def collect_all() -> list[dict]:
         time.sleep(1)
 
         articles = collect_udn_api(src)
+        source_counts[src["key"]] = len(articles)
+        all_articles.extend(articles)
+        print(f"    -> {len(articles)} articles")
+
+    # Sitemap sources
+    for src in SITEMAP_SOURCES:
+        print(f"  [{src['key']}] {src['name']}")
+        time.sleep(1)
+
+        articles = collect_sitemap(src)
         source_counts[src["key"]] = len(articles)
         all_articles.extend(articles)
         print(f"    -> {len(articles)} articles")

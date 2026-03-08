@@ -1,10 +1,23 @@
 """
-Stage D — Topic filtering via bge-small-zh-v1.5 embeddings.
+Stage D — Topic classification via fine-tuned ALBERT news classifier.
 Copyright (C) 2026 @MackinHung (https://github.com/MackinHung)
 
-Filters articles by semantic similarity to predefined topic categories.
-Only social/political articles pass through; entertainment, sports (non-political),
-lifestyle, etc. are discarded.
+Classifies articles using Mackin010/albert-news-tw-political,
+fine-tuned from clhuang/albert-news-classification (26K articles)
+on 544 real PowerReader articles with corrected labels for better
+policy/geopolitics recall.
+
+Model outputs 11 categories:
+  政治, 科技, 運動, 證券, 產經, 娛樂, 生活, 國際, 社會, 文化, 兩岸
+
+Decision logic:
+  - KEEP: top category in POLITICAL_CATEGORIES
+  - REJECT: otherwise
+
+History:
+  v1: bge-small-zh cosine-to-centroid — replaced (centroids overlap 0.55-0.74)
+  v2: clhuang/albert-news-classification — good baseline but misses policy news
+  v3: Mackin010/albert-news-tw-political — fine-tuned, +7% recall on policy/geopolitics
 
 Usage:
     filter = TopicFilter()
@@ -14,64 +27,28 @@ Usage:
         article["matched_topic"] = result["topic"]
 """
 
-import numpy as np
-from sentence_transformers import SentenceTransformer
+import torch
+from transformers import BertTokenizer, AlbertForSequenceClassification
+
 
 # ------------------------------------------------------------------
-# Topic reference definitions
+# Category definitions
 # ------------------------------------------------------------------
 
-# Each topic has multiple reference texts to improve matching coverage.
-# bge-small-zh-v1.5 is optimized for Chinese semantic similarity.
+# 11 categories from ALBERT news classification (order matters!)
+CATEGORIES: list[str] = [
+    "政治", "科技", "運動", "證券", "產經",
+    "娛樂", "生活", "國際", "社會", "文化", "兩岸",
+]
 
-TOPIC_REFS: dict[str, list[str]] = {
-    "政治動態": [
-        "總統府立法院行政院政策施政",
-        "選舉候選人政黨競選民調",
-        "立法委員質詢法案審議修法",
-        "政治人物發言記者會聲明",
-    ],
-    "社會議題": [
-        "社會問題弱勢族群權益保障",
-        "抗議示威遊行社會運動",
-        "貧富差距居住正義房價問題",
-        "性別平等歧視人權議題",
-    ],
-    "經濟政策": [
-        "財政預算稅制改革經濟發展",
-        "央行利率貨幣政策通膨物價",
-        "產業政策半導體供應鏈貿易",
-        "勞工薪資就業失業基本工資",
-    ],
-    "國防外交": [
-        "兩岸關係台海軍事國防安全",
-        "外交邦交國際關係台美關係",
-        "軍購國防預算軍事演習",
-        "中國大陸對台政策統獨議題",
-    ],
-    "司法人權": [
-        "司法改革法院判決審判訴訟",
-        "檢察官偵辦起訴貪污弊案",
-        "死刑廢死人權公約轉型正義",
-        "言論自由新聞自由集會自由",
-    ],
-    "環境能源": [
-        "能源政策核能再生能源減碳",
-        "環境污染空氣品質氣候變遷",
-        "國土規劃都市計畫土地徵收",
-        "食品安全公共衛生防疫政策",
-    ],
-    "教育文化": [
-        "教育改革課綱大學入學制度",
-        "文化政策文化資產保存母語",
-        "原住民客家族群多元文化",
-        "媒體識讀假新聞資訊素養",
-    ],
-}
+# Categories considered politically relevant for PowerReader
+POLITICAL_CATEGORIES: set[str] = {"政治", "國際", "兩岸", "社會"}
 
-# Default similarity threshold — articles below this are discarded.
-# Calibrated via testing: 0.55 catches most relevant articles
-# while filtering out pure entertainment/lifestyle/sports.
+# Batch size for CPU inference (balances speed vs memory)
+INFERENCE_BATCH_SIZE = 32
+
+# Default minimum confidence — not used for category-based decision,
+# kept for API compatibility with runner.py CLI --threshold flag.
 DEFAULT_THRESHOLD = 0.55
 
 
@@ -80,73 +57,53 @@ DEFAULT_THRESHOLD = 0.55
 # ------------------------------------------------------------------
 
 class TopicFilter:
-    """Semantic topic filter using bge-small-zh-v1.5 embeddings."""
+    """News topic classifier using fine-tuned ALBERT.
+
+    v3: Mackin010/albert-news-tw-political (fine-tuned on 544 real articles).
+    Falls back to clhuang/albert-news-classification if fine-tuned model unavailable.
+    """
 
     def __init__(
         self,
         *,
-        model_name: str = "BAAI/bge-small-zh-v1.5",
+        model_name: str = "Mackin010/albert-news-tw-political",
+        tokenizer_name: str = "bert-base-chinese",
         threshold: float = DEFAULT_THRESHOLD,
+        political_categories: set[str] | None = None,
     ):
-        self._model = SentenceTransformer(model_name)
+        self._tokenizer = BertTokenizer.from_pretrained(tokenizer_name)
+        self._model = AlbertForSequenceClassification.from_pretrained(model_name)
+        self._model.eval()
         self._threshold = threshold
-        self._topic_embeddings: dict[str, np.ndarray] = {}
-        self._build_topic_embeddings()
-
-    def _build_topic_embeddings(self) -> None:
-        """Pre-compute averaged embeddings for each topic category."""
-        for topic, refs in TOPIC_REFS.items():
-            embeddings = self._model.encode(refs, normalize_embeddings=True)
-            # Average all reference vectors, then re-normalize
-            avg = np.mean(embeddings, axis=0)
-            avg = avg / np.linalg.norm(avg)
-            self._topic_embeddings[topic] = avg
+        self._political = political_categories or POLITICAL_CATEGORIES
 
     def classify(self, *, title: str, summary: str = "") -> dict:
-        """Classify an article by its title and summary.
+        """Classify a single article.
 
         Args:
-            title: Article title (required)
-            summary: Article summary/description (optional)
+            title: Article title (required).
+            summary: Article summary/description (optional).
 
         Returns:
             {
                 "keep": bool,
-                "score": float,        # max cosine similarity
-                "topic": str | None,   # matched topic name
-                "all_scores": dict,    # all topic scores
+                "score": float,        # confidence of top category
+                "topic": str | None,   # top category name (None if rejected)
+                "all_scores": dict,    # all 11 category probabilities
             }
         """
-        # Combine title + summary for richer signal
-        text = title
-        if summary:
-            text = f"{title} {summary[:200]}"
+        text = f"{title} {summary[:200]}" if summary else title
 
-        # Encode article text
-        article_emb = self._model.encode(
-            [text], normalize_embeddings=True
-        )[0]
+        inputs = self._tokenizer(
+            text, return_tensors="pt", truncation=True, max_length=128,
+        )
+        with torch.no_grad():
+            logits = self._model(**inputs).logits
+        probs = torch.nn.functional.softmax(logits, dim=-1)[0]
 
-        # Compute cosine similarity against all topics
-        scores: dict[str, float] = {}
-        for topic, topic_emb in self._topic_embeddings.items():
-            sim = float(np.dot(article_emb, topic_emb))
-            scores[topic] = round(sim, 4)
+        return self._build_result(probs)
 
-        # Find best match
-        best_topic = max(scores, key=scores.get)
-        best_score = scores[best_topic]
-
-        return {
-            "keep": best_score >= self._threshold,
-            "score": best_score,
-            "topic": best_topic if best_score >= self._threshold else None,
-            "all_scores": scores,
-        }
-
-    def classify_batch(
-        self, articles: list[dict],
-    ) -> list[dict]:
+    def classify_batch(self, articles: list[dict]) -> list[dict]:
         """Classify multiple articles efficiently.
 
         Args:
@@ -166,30 +123,47 @@ class TopicFilter:
             text = f"{title} {summary[:200]}" if summary else title
             texts.append(text)
 
-        # Batch encode
-        embeddings = self._model.encode(
-            texts, normalize_embeddings=True, batch_size=32
-        )
+        # Process in batches to limit memory usage
+        all_results: list[dict] = []
 
-        # Classify each
-        results = []
-        for emb in embeddings:
-            scores: dict[str, float] = {}
-            for topic, topic_emb in self._topic_embeddings.items():
-                sim = float(np.dot(emb, topic_emb))
-                scores[topic] = round(sim, 4)
+        for batch_start in range(0, len(texts), INFERENCE_BATCH_SIZE):
+            batch_texts = texts[batch_start:batch_start + INFERENCE_BATCH_SIZE]
 
-            best_topic = max(scores, key=scores.get)
-            best_score = scores[best_topic]
+            inputs = self._tokenizer(
+                batch_texts,
+                return_tensors="pt",
+                truncation=True,
+                max_length=128,
+                padding=True,
+            )
+            with torch.no_grad():
+                logits = self._model(**inputs).logits
+            batch_probs = torch.nn.functional.softmax(logits, dim=-1)
 
-            results.append({
-                "keep": best_score >= self._threshold,
-                "score": best_score,
-                "topic": best_topic if best_score >= self._threshold else None,
-                "all_scores": scores,
-            })
+            for probs in batch_probs:
+                all_results.append(self._build_result(probs))
 
-        return results
+        return all_results
+
+    def _build_result(self, probs: torch.Tensor) -> dict:
+        """Build classification result from probability tensor."""
+        best_idx = torch.argmax(probs).item()
+        best_cat = CATEGORIES[best_idx]
+        best_conf = float(probs[best_idx])
+
+        keep = best_cat in self._political
+
+        all_scores = {
+            cat: round(float(probs[i]), 4)
+            for i, cat in enumerate(CATEGORIES)
+        }
+
+        return {
+            "keep": keep,
+            "score": best_conf,
+            "topic": best_cat if keep else None,
+            "all_scores": all_scores,
+        }
 
     @property
     def threshold(self) -> float:

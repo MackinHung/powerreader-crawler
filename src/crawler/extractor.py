@@ -11,6 +11,7 @@ import time
 import requests
 
 from .config import (
+    BOT_USER_AGENT,
     HEADERS,
     MARKDOWN_NEW_API,
     MARKDOWN_NEW_TIMEOUT,
@@ -114,21 +115,16 @@ def extract_trafilatura(url: str) -> dict:
 
         # L1: Standard trafilatura
         config = trafilatura.settings.use_config()
-        config.set(
-            "DEFAULT", "USER_AGENT",
-            "Mozilla/5.0 (compatible; PowerReader/1.0; academic research)"
-        )
+        config.set("DEFAULT", "USER_AGENT", BOT_USER_AGENT)
 
         downloaded = trafilatura.fetch_url(url, config=config)
 
         if not downloaded:
-            # L2: Try with browser-like headers
+            # L2: Retry with requests library (honest headers)
             try:
                 enhanced_headers = {
                     **HEADERS,
-                    "Referer": "https://www.cna.com.tw/",
-                    "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
-                    "Accept": "text/html,application/xhtml+xml",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 }
                 resp = requests.get(
                     url, headers=enhanced_headers, timeout=REQUEST_TIMEOUT

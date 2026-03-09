@@ -43,6 +43,7 @@ from .config import (
     TW_TZ,
 )
 from .extractor import extract_content
+from .robots_checker import RobotsChecker
 
 
 # ------------------------------------------------------------------
@@ -50,13 +51,18 @@ from .extractor import extract_content
 # ------------------------------------------------------------------
 
 class RateLimiter:
-    """Domain-aware rate limiter with circuit breaker."""
+    """Domain-aware rate limiter with circuit breaker and robots.txt Crawl-delay."""
 
     def __init__(self):
         self._domain_last: dict[str, float] = {}
         self._domain_failures: dict[str, int] = defaultdict(int)
         self._blocked: set[str] = set()
         self._prev_domain: str | None = None
+        self._crawl_delays: dict[str, float] = {}  # domain -> seconds
+
+    def set_crawl_delay(self, domain: str, delay: float) -> None:
+        """Set Crawl-delay for a domain (from robots.txt)."""
+        self._crawl_delays[domain.lower()] = delay
 
     def wait(self, url: str) -> bool:
         """Wait appropriate delay before requesting. Returns False if blocked."""
@@ -65,8 +71,14 @@ class RateLimiter:
         if domain in self._blocked:
             return False
 
+        # Use robots.txt Crawl-delay if available, otherwise default
+        crawl_delay = self._crawl_delays.get(domain)
+
         if self._prev_domain is not None:
-            if domain == self._prev_domain:
+            if crawl_delay is not None:
+                # Respect robots.txt Crawl-delay (add small jitter)
+                delay = crawl_delay + random.uniform(0.5, 1.5)
+            elif domain == self._prev_domain:
                 delay = random.uniform(
                     SAME_DOMAIN_DELAY_MIN, SAME_DOMAIN_DELAY_MAX
                 )
@@ -79,8 +91,9 @@ class RateLimiter:
             last = self._domain_last.get(domain)
             if last is not None:
                 elapsed = time.monotonic() - last
-                if elapsed < SAME_DOMAIN_DELAY_MIN:
-                    delay = max(delay, SAME_DOMAIN_DELAY_MIN - elapsed)
+                min_gap = crawl_delay if crawl_delay else SAME_DOMAIN_DELAY_MIN
+                if elapsed < min_gap:
+                    delay = max(delay, min_gap - elapsed)
 
             time.sleep(delay)
 
@@ -274,16 +287,53 @@ def run_pipeline(
         scheduled = scheduled[:limit]
         print(f"  Limited to {limit} articles")
 
+    # ---- robots.txt pre-fetch ----
+    print(f"\n[robots.txt] Checking {len(scheduled)} article domains...")
+    print("-" * 40)
+
+    robots = RobotsChecker()
+    domain_urls = [meta["url"] for meta in scheduled]
+    robots_results = robots.prefetch_domains(domain_urls)
+
+    for domain, loaded in robots_results.items():
+        status = "OK" if loaded else "unreachable (allowing)"
+        print(f"  {domain}: {status}")
+
+    # Pre-filter articles blocked by robots.txt
+    robots_allowed = []
+    robots_blocked_count = 0
+    for meta in scheduled:
+        if robots.can_fetch(meta["url"]):
+            robots_allowed.append(meta)
+        else:
+            robots_blocked_count += 1
+            print(f"  [BLOCKED] {meta['url']}")
+
+    if robots_blocked_count:
+        print(f"\n  robots.txt blocked {robots_blocked_count} articles")
+
+    scheduled = robots_allowed
+
     # ---- Stage B + C: Extract & Clean ----
     print(f"\n[Stage B+C] Extracting and cleaning {len(scheduled)} articles...")
     print("-" * 40)
 
     rate_limiter = RateLimiter()
+
+    # Apply Crawl-delay from robots.txt to rate limiter
+    for url in domain_urls:
+        crawl_delay = robots.get_crawl_delay(url)
+        if crawl_delay is not None:
+            domain = urlparse(url).netloc.lower()
+            rate_limiter.set_crawl_delay(domain, crawl_delay)
+            print(f"  Crawl-delay {domain}: {crawl_delay}s")
+
     results: list[dict] = []
     stats = {
         "total_collected": filter_stats["before"],
         "filter_kept": filter_stats["kept"],
         "filter_skipped": filter_stats["skipped"],
+        "robots_blocked": robots_blocked_count,
         "total": len(scheduled),
         "extracted": 0,
         "cleaned": 0,
@@ -381,6 +431,10 @@ def run_pipeline(
     if not skip_filter:
         filter_line = f"  Stage D filter: {stats['filter_kept']} kept / {stats['filter_skipped']} skipped\n"
 
+    robots_line = ""
+    if stats.get("robots_blocked", 0):
+        robots_line = f"  robots.txt:    {stats['robots_blocked']} blocked\n"
+
     dedup_line = ""
     if dedup_stats["before"] >= 2:
         dedup_line = f"  Stage E dedup:  {dedup_stats['after']} unique / {dedup_stats['before'] - dedup_stats['after']} removed\n"
@@ -388,7 +442,7 @@ def run_pipeline(
     print(f"""
   Elapsed:         {elapsed:.1f}s
   Stage A:         {stats['total_collected']} candidates
-{filter_line}  Stage B extract: {stats['extracted']} success / {stats['failed_extract']} failed
+{filter_line}{robots_line}  Stage B extract: {stats['extracted']} success / {stats['failed_extract']} failed
   Stage C clean:   {stats['cleaned']} passed / {stats['failed_quality']} quality rejected
 {dedup_line}  Blocked:         {stats['blocked']}
   Final output:    {len(results)} articles

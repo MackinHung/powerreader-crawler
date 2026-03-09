@@ -19,6 +19,7 @@ import requests
 
 from .config import (
     API_SOURCES,
+    BOT_USER_AGENT,
     HEADERS,
     REQUEST_TIMEOUT,
     RSS_SOURCES,
@@ -169,7 +170,7 @@ def collect_rss(source: dict) -> list[dict]:
             feed_category = feed_item.get("category", "綜合")
 
         try:
-            feed = feedparser.parse(feed_url)
+            feed = feedparser.parse(feed_url, agent=BOT_USER_AGENT)
 
             if feed.bozo and not feed.entries:
                 print(f"    [WARN] Parse error: {feed_url}")

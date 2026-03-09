@@ -81,7 +81,7 @@ _STRONG_TERMINATION = [
     "不用抽 不用搶",
     "不用抽不用搶",
     "點我下載APP",
-    "按我看活動辦法",
+    "按我活動辦法",
     "上一則",
     "下一則",
     "此網頁已閒置",
@@ -92,6 +92,34 @@ _STRONG_TERMINATION = [
     "（相關報導：",            # Storm article-end related links
     "（相關報導:",
     "張貼文章或下標籤",        # UDN comment ToS
+    # --- 2026-03-09 Round 2: new patterns from raw analysis ---
+    "### ‧",                  # ETTODAY sidebar news ticker
+    "今日排行榜",              # EBC ranking section
+    "往下看更多",              # EBC "see more" section
+    "廣告 / 請繼續往下閱讀",   # EBC ad break
+    "## 書籍介紹",             # TNL book promo section
+    "責任編輯：",              # Editor attribution (article end)
+    "責任編輯:",
+    "核稿編輯：",              # TNL review editor
+    "核稿編輯:",
+    "封面示意圖",              # EBC cover image line (after article)
+    # --- 2026-03-09 Round 3: per-source tail patterns ---
+    "## 熱門新聞",             # Generic section — truncate all below
+    "## 專題報導",             # Generic section — truncate all below
+    "※本文版權所有",           # Copyright boilerplate — truncate all below
+    "更多CNEWS",              # CNEWS related articles
+    "更多匯流新聞網報導",      # CNEWS alt wording
+    "All rights Reserved",    # English copyright footer
+    "All Rights Reserved",
+    "收看中視新聞",            # CTV channel promo
+    "請鎖定新聞台",            # CTV/generic channel promo
+    "新聞授權",                # News authorization footer — truncate all below
+    "經授權轉載",              # Authorized reprint footer — truncate all below
+    # --- 2026-03-10 Round 4: user-reported patterns ---
+    "文章轉載請註明出處",      # Reprint notice footer — truncate all below
+    "延伸閱讀",                # "Extended reading" section (upgraded from weak)
+    "深度求真",                # THE_REPORTER slogan — truncate all below
+    "訂閱中視新聞",            # CTV subscription CTA — truncate all below
 ]
 
 # Weak markers — only terminate on short lines (< 80 chars)
@@ -103,7 +131,6 @@ _WEAK_TERMINATION = [
     "大家都關注",
     "看更多！請加入",
     "看更多!請加入",
-    "延伸閱讀",
     "推薦閱讀",
     "你可能也想看",
     "更多新聞",
@@ -111,6 +138,14 @@ _WEAK_TERMINATION = [
     "相關新聞",
     "則留言",          # UDN comment section: "共 0 則留言"
     "[發布]",          # UDN comment button
+    # --- 2026-03-09 Round 2 ---
+    "政治熱門新聞",     # ETTODAY section header
+    "讀者迴響",         # ETTODAY comment section
+    "最夯影音",         # ETTODAY video section
+    "熱門快報",         # ETTODAY breaking news
+    "更多熱門",         # ETTODAY more button
+    "關鍵字：",         # ETTODAY/TECHNEWS tag section
+    "關鍵字:",
 ]
 
 # Byline pattern: YYYY/MM/DD HH:MM or YYYY-MM-DD HH:MM followed by reporter
@@ -305,10 +340,68 @@ _LINE_NOISE = [
     re.compile(r"^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s*$"),
     # TNL share buttons: Share : [ ](mailto:...)
     re.compile(r"^Share\s*:\s*\["),
+    # --- 2026-03-09 Round 2: new noise patterns ---
+    # Photo/image credits
+    re.compile(r"^Photo Credit:"),
+    re.compile(r"^圖片來自"),
+    # EBC image caption markers
+    re.compile(r"^▼"),
+    # Cover/source image attribution: （封面圖...）or （圖／...）
+    re.compile(r"^（封面"),
+    re.compile(r"^（圖[/／╱]"),
+    # Affiliate/ad disclosures
+    re.compile(r"透過以上連結購書"),
+    re.compile(r"導購分潤收入"),
+    re.compile(r"獲得分潤收益"),
+    # TNL editorial note prefix (standalone)
+    re.compile(r"^TNL精選書籍"),
+    # Generic "report by editor" pattern at end
+    re.compile(r"^[A-Za-z\u4e00-\u9fff]{1,4}[/／]\s*編輯\s*$"),
+    # Tag section: ## #TagName
+    re.compile(r"^##\s+#"),
+    # EBC inline ad links
+    re.compile(r"^\[來就送"),
+    # Navigation breadcrumbs: [首頁](/) > [分類]
+    re.compile(r"^\[首頁\]\(/"),
+    # Standalone share/copy buttons
+    re.compile(r"^分享\s+分享\s+複製連結"),
+    # Standalone "聽新聞"
+    re.compile(r"^聽新聞$"),
+    # PTS publish/update time lines
+    re.compile(r"^發布時間：\d{4}"),
+    re.compile(r"^更新時間：\d{4}"),
+    # Combined PTS time line
+    re.compile(r"^發布時間：.*更新時間："),
+    # --- Round 3: per-source noise ---
+    # Copyright notices
+    re.compile(r"^※"),                        # ※ prefix lines (copyright/disclaimer)
+    re.compile(r"All [Rr]ights [Rr]eserved"),
+    # CNEWS related article links
+    re.compile(r"^更多CNEWS"),
+    re.compile(r"^更多匯流新聞網"),
+    # CTV channel promos
+    re.compile(r"收看中視新聞"),
+    re.compile(r"請鎖定新聞台"),
+    # Generic news footer: 【...報導】or 新聞授權
+    re.compile(r"^【[^】]*授權[^】]*】"),
+    re.compile(r"新聞授權"),
+    # --- Round 4: THE_REPORTER + CTV specific ---
+    # THE_REPORTER SVG artifacts
+    re.compile(r"^Fill 1$"),
+    re.compile(r"^Fill$"),
+    # Photographer/illustrator credits: （攝影／...）（繪圖／...）
+    re.compile(r"^（攝影"),
+    re.compile(r"^（繪圖"),
+    # Standalone bracket tags: [深度專題], [最新], [更多](/search/tags/...) etc.
+    # Matches [2-8 chars] optionally followed by (url), entire line
+    re.compile(r"^\s*\[[^\]]{2,8}\](\([^\)]*\))?\s*$"),
+    # Book review heading (single line removal, not truncation)
+    re.compile(r"^## 書評$"),
 ]
 
 # Detect lines that are mostly markdown links (navigation bars)
 _LINK_RE = re.compile(r"\[.*?\]\(.*?\)")
+
 
 # Vue/Angular template syntax — always noise in news articles
 _TEMPLATE_RE = re.compile(r"\{\{.*?\}\}")
@@ -347,6 +440,42 @@ _LATE_TERMINATION = [
     "咖啡贊助",               # TECHNEWS donation CTA
     "每杯咖啡",               # TECHNEWS donation price line
     "想請我們喝",              # TECHNEWS donation CTA heading
+    # --- 2026-03-09 Round 2: late fallback ---
+    "### ‧",                  # ETTODAY sidebar news ticker
+    "今日排行榜",              # EBC ranking
+    "往下看更多",              # EBC see more
+    "## 書籍介紹",             # TNL book promo
+    "責任編輯：",              # Editor attribution
+    "責任編輯:",
+    "核稿編輯：",
+    "核稿編輯:",
+    "廣告 / 請繼續往下閱讀",   # EBC ad break
+    "## 相關新聞",             # Related news section heading
+    "## 相關報導",
+    "## #",                   # Tag sections (## #標籤)
+    "封面示意圖",              # Cover image attribution
+    "政治熱門新聞",            # ETTODAY section
+    "讀者迴響",                # ETTODAY comments
+    "最夯影音",                # ETTODAY video
+    "更多熱門",                # ETTODAY more
+    "熱門快報",                # ETTODAY breaking
+    # --- Round 3: per-source tail ---
+    "## 熱門新聞",
+    "## 專題報導",
+    "※本文版權所有",
+    "更多CNEWS",
+    "更多匯流新聞網報導",
+    "All rights Reserved",
+    "All Rights Reserved",
+    "收看中視新聞",
+    "請鎖定新聞台",
+    "新聞授權",                # News authorization footer
+    "經授權轉載",              # Authorized reprint footer
+    # --- Round 4 ---
+    "文章轉載請註明出處",      # Reprint notice
+    "延伸閱讀",                # Extended reading section
+    "深度求真",                # THE_REPORTER slogan
+    "訂閱中視新聞",            # CTV subscription CTA
 ]
 
 
@@ -383,6 +512,10 @@ def clean_content(raw_content: str) -> str:
 
         # Skip link-heavy lines (3+ links, little other text)
         if _is_link_heavy(stripped):
+            continue
+
+        # Skip lines with short bracket tags and little real text
+        if _is_bracket_tag_line(stripped):
             continue
 
         # Skip very short non-punctuation lines (UI elements)
@@ -442,6 +575,29 @@ def _is_link_heavy(stripped: str) -> bool:
     # Remove all link syntax and check what's left
     text_only = _LINK_RE.sub("", stripped).strip()
     return len(text_only) < 20
+
+
+def _is_bracket_tag_line(stripped: str) -> bool:
+    """Check if line contains markdown links with little real text around them.
+
+    Detects navigation/category/tag lines like:
+      [醫療](url) • [精選書摘](url)
+      _損失金額(元)_ [更多新聞](url)
+      > [iThome Security](https://www.facebook.com/...)
+
+    Protects article text with inline links like:
+      根據[中央社](url)的報導指出，政府已經宣布...
+    """
+    if "](" not in stripped:
+        return False
+
+    # Remove all markdown links [text](url)
+    remaining = _LINK_RE.sub("", stripped)
+
+    # Count Chinese characters in remaining text
+    chinese = len(re.findall(r"[\u4e00-\u9fff]", remaining))
+
+    return chinese < 10
 
 
 # ------------------------------------------------------------------

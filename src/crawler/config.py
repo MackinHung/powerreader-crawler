@@ -30,13 +30,21 @@ MAX_ARTICLE_CHARS = 50000
 REQUEST_TIMEOUT = 20  # seconds
 MARKDOWN_NEW_TIMEOUT = 30
 
+# Bot identity — honest, identifiable user-agent
+BOT_NAME = "PowerReaderCrawler"
+BOT_VERSION = "1.0"
+BOT_URL = "https://github.com/MackinHung/powerreader-crawler"
+BOT_USER_AGENT = f"{BOT_NAME}/{BOT_VERSION} (+{BOT_URL})"
+
 HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    ),
+    "User-Agent": BOT_USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
 }
+
+# robots.txt
+ROBOTS_TXT_TIMEOUT = 10  # seconds
+ROBOTS_CACHE_TTL = 3600  # 1 hour
 
 # ------------------------------------------------------------------
 # RSS source definitions

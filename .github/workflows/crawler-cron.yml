@@ -2,7 +2,7 @@ name: News Crawler (Scheduled)
 
 on:
   schedule:
-    - cron: "0 */6 * * *"  # Every 6 hours (UTC)
+    - cron: "0 */12 * * *"  # Every 12 hours (UTC)
   workflow_dispatch:        # Manual trigger
     inputs:
       limit:
